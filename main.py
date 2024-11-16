@@ -1,9 +1,9 @@
-from argparse import ArgumentParser
+import os
 import numpy as np
+from argparse import ArgumentParser
 import datainspection
 import visualization
 from data_loader import DataLoader
-
 
 
 def get_dataset_entities():
@@ -47,7 +47,9 @@ def main(args):
                 dataloader.load_dataset(d, entity)
                 acf_array = inspector.plot_mean_acf(dataloader.data, f"{d}: {entity}")
                 if args.save:
-                    np.save(f"output/acf_{d}_{entity}",acf_array)
+                    out_dir = "output"
+                    os.makedirs(out_dir, exist_ok=True)
+                    np.save(f"{out_dir}/acf_{d}_{entity}",acf_array)
     visualizer.plot_legend()
     inspector.show_correlations()
 
@@ -55,7 +57,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("-d", "--datasets",
                         help="multiple datasets are separated by '_' (SMD_MSL_SMAP_PSM_SWaT_WADI)",
-                        default="SMD_MSL_SMAP_PSM_SWaT_WADI",
+                        default="SMD_PSM_SWaT_WADI",
                         )
     parser.add_argument("-l", "--lags",
                         default=1024,
