@@ -1,0 +1,5 @@
+matplotlib
+numpy
+statsmodels
+pandas
+PyQt6
