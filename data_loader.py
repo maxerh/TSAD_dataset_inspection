@@ -45,10 +45,11 @@ class DataLoader:
         if not entity:
             entity = self.name.lower()
         datapath = os.path.join(main_data_path, self.name, entity)
-        if self.name in ["SMD", "MSL", "SMAP", "SWaT", "WADI"]:
-            self.data = self.read_pkl(f"{datapath}_train.pkl")
-        elif self.name == "PSM":
-            self.data = self.read_csv(f"{datapath}_train.csv")
-            self.data = np.nan_to_num(self.data)
-        else:
-            raise ValueError('unknown dataset ' + str(self.name))
+        self.data = self.read_pkl(f"{datapath}_train.pkl")
+        if self.name == "PSM":
+            self.data = self.data[:,1:]
+        # elif self.name == "PSM":
+        #     self.data = self.read_csv(f"{datapath}_train.csv")
+        #     self.data = np.nan_to_num(self.data)
+        # else:
+        #     raise ValueError('unknown dataset ' + str(self.name))
