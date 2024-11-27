@@ -28,7 +28,7 @@ def get_dataset_entities():
 
     return entities
 
-def get_acf(dataloader, datasets, entities):
+def get_acf(args, dataloader, datasets, entities):
     out_dir = "output/acf"
     os.makedirs(out_dir, exist_ok=True)
     visualizer = visualization.VisualizerCorrelation()
@@ -91,7 +91,7 @@ def main(args):
     #        print(k, ":", len(entities[k]))
     dataloader = DataLoader()
 
-    get_acf(dataloader, datasets, entities)
+    get_acf(args, dataloader, datasets, entities)
     #detect_stationary(dataloader, datasets, entities)
 
 
