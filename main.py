@@ -79,9 +79,11 @@ def detect_stationary(dataloader, datasets, entities):
         for i, entity in enumerate(entities[d]):
             dataloader.load_dataset(d, entity)
             for channel in range(dataloader.data.shape[1]):
+                if min(dataloader.data[:,channel]) == max(dataloader.data[:,channel]):
+                    continue
                 adf_out = inspector.print_results(dataloader.data[:,channel], "adf")
                 kpss_out = inspector.print_results(dataloader.data[:,channel], "kpss")
-                print(d, entity, channel, "\n", pd.concat([adf_out, kpss_out], axis=1))
+                print("\n", d, entity, channel, "\n", pd.concat([adf_out, kpss_out], axis=1))
 
 def main(args):
     datasets = args.datasets.split("_")
@@ -91,8 +93,8 @@ def main(args):
     #        print(k, ":", len(entities[k]))
     dataloader = DataLoader()
 
-    get_acf(args, dataloader, datasets, entities)
-    #detect_stationary(dataloader, datasets, entities)
+    #get_acf(args, dataloader, datasets, entities)
+    detect_stationary(dataloader, datasets, entities)
 
 
 
