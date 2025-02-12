@@ -6,10 +6,12 @@ import pickle
 main_data_path = "/media/4TB_mntpnt/datasets"
 
 class DataLoader:
-    def __init__(self):
+    def __init__(self, mode='train'):
         super().__init__()
         self.data = None
+        self.label = None
         self.name = None
+        self.mode = mode
 
     def get_data_dim(self):
         if self.name == 'SMAP':
@@ -45,9 +47,13 @@ class DataLoader:
         if not entity:
             entity = self.name.lower()
         datapath = os.path.join(main_data_path, self.name, entity)
-        self.data = self.read_pkl(f"{datapath}_train.pkl")
+        self.data = self.read_pkl(f"{datapath}_{self.mode}.pkl")
         if self.name == "PSM":
             self.data = self.data[:,1:]
+        if self.mode == 'test':
+            self.label = self.read_pkl(f"{datapath}_{self.mode}_label.pkl")
+            if len(self.label.shape) == 2:
+                self.label = self.label[:,-1]
         # elif self.name == "PSM":
         #     self.data = self.read_csv(f"{datapath}_train.csv")
         #     self.data = np.nan_to_num(self.data)
