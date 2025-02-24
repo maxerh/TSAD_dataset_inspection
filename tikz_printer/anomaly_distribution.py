@@ -1,36 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
-
-
-def load_data(dl, datasets, entities):
-    dict1 = {}
-    for d in datasets:
-        dict1[d] = {}
-        for i, entity in enumerate(entities[d]):
-            dl.load_dataset(d, entity)
-            data = dl.data
-            label = dl.label
-            # Handle edge case: If no labels available
-            if label is not None and len(label) > 0:
-                total_labels = len(label)
-                # Compute relative positions
-                relative_positions = [idx / total_labels for idx in range(total_labels)]
-
-                # Store relevant info in dictionary
-                dict1[d][entity] = {
-                    "data": data,
-                    "label": label,
-                    "relative_positions": relative_positions,
-                }
-            else:
-                # Handle case with missing labels
-                dict1[d][entity] = {
-                    "data": data,
-                    "label": None,
-                    "relative_positions": None,
-                }
-
-    return dict1
+from utils.data_utils import *
 
 def get_anomaly_distribution(dl, datasets, entities):
     data_dict = load_data(dl, datasets, entities)
@@ -60,6 +29,8 @@ def plot_histogram_tikz(data, ds):
     color = ds.lower()
     hist, bins = data
     bin_centers = 0.5 * (bins[:-1] + bins[1:])  # Average of bin edges
+    x_coords = np.append(bin_centers, [0,1])
+    x_coords.sort()
 
     # TikZ header
     tikz_code = [
@@ -68,23 +39,23 @@ def plot_histogram_tikz(data, ds):
         "\\begin{tikzpicture}",
         "    \\begin{axis}[".strip(),
         "        width=\\textwidth,",
-        "        height=5cm,",
+        "        height=3cm,",
         "        ybar,",
         "        bar width=0.1cm,",
         "        ymin=0,",
         "        xmin=0,",
         "        xmax=1,",
         "        xlabel={rel. position},",
-        "        ylabel={number of anomalies},",
-        "        xtick={0,0.25,0.50,0.75,1},",
-        "        xticklabel={0,0.25,0.50,0.75,1},",
-        "        symbolic x coords={%s}," % ",".join([f"{x:.2f}" for x in bin_centers]),
+        "        %ylabel={points},",
+        "        xtick={0,1},",
+        "        xticklabel={0,1},",
+        "        symbolic x coords={%s}," % ",".join([f"{x:.3f}" for x in x_coords]),
         "    ]",
     ]
 
     # Convert data into TikZ coordinates (bin centers and counts)
     coordinates = " ".join(
-        f"({bin_center:.2f}, {count})" for bin_center, count in zip(bin_centers, hist)
+        f"({bin_center:.3f}, {count})" for bin_center, count in zip(bin_centers, hist) if count > 0
     )
     # Append the histogram plot with the correct color
     tikz_code.append(f"        \\addplot+[ybar, fill={color}, draw={color}, fill opacity=0.4] coordinates {{{coordinates}}};")
@@ -98,4 +69,76 @@ def plot_histogram_tikz(data, ds):
     ])
 
     return "\n".join(tikz_code)
+
+
+def get_anomaly_lengths(dl, datasets, entities):
+    data_dict = load_data(dl, datasets, entities)
+    for ds in data_dict.keys():
+        lengths = []
+        for entity in data_dict[ds].keys():
+            labels = np.array(data_dict[ds][entity]['label'])
+            segments = find_segments(labels)
+            for s in segments: lengths.append(s[1]-s[0])
+        plot_anomaly_lengths_tikz(ds, lengths)
+
+
+def plot_anomaly_lengths_tikz(ds, lengths, bin_count=100):
+    """
+    Generates a TikZ code histogram for the lengths of anomalous segments.
+
+    :param lengths: List of lengths of anomalous segments.
+    :type lengths: List[int]
+    :param bin_count: Number of bins for the histogram.
+    :type bin_count: int
+    """
+    # Calculate the histogram data
+    counts, bins = np.histogram(lengths, bins=bin_count)
+
+    # Determine bin centers
+    bin_centers = 0.5 * (bins[:-1] + bins[1:])
+
+    # TikZ header
+    tikz_code = [
+        "\\begin{figure}",
+        "\centering",
+        "\\begin{tikzpicture}",
+        "    \\begin{axis}[",
+        "        width=\\textwidth,",
+        "        height=3cm,",
+        "        ybar,",
+        "        bar width=0.1cm,",
+        "        ymin=0,",
+        "        xmin=0,",
+        f"        xmax={int(max(bins)) + 1},",
+        "        xlabel={Anomaly Segment Length},",
+        "        %ylabel={Frequency},",
+        "        xticklabel style={/pgf/number format/fixed},",
+        "    ]"
+    ]
+
+    # Convert the histogram data into TikZ coordinates
+    coordinates = " ".join(
+        f"({int(bin_center)}, {count})"
+        for bin_center, count in zip(bin_centers, counts) if count > 0
+    )
+    color = ds.lower()
+
+
+    # Append TikZ histogram data
+    tikz_code.append(f"        \\addplot+[ybar, fill={color}, draw={color}, fill opacity=0.4] coordinates {{{coordinates}}};")
+
+    # Close TikZ and axis environments
+    tikz_code.extend([
+        "    \\end{axis}",
+        "\\end{tikzpicture}"
+    ])
+    tikz_code.extend([
+        f"\\caption{{Length of anomalous, continuous segments in the \\acs{{{ds}}} dataset.}}",
+        f"\\label{{fig:anomaly_len_{ds.lower()}}}",
+        "\\end{figure}"
+    ])
+
+
+    # Print the generated TikZ code
+    print("\n".join(tikz_code))
 

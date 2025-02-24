@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+from utils.data_utils import *
 
 def box_plot(dl_train, dl_test, datasets, entities, exclude_anomaly=False):
     bp_train = plt_box_plot(dl_train, datasets, entities, exclude_anomaly)
@@ -31,16 +32,13 @@ def plt_box_plot(dataloader, datasets, entities, exclude_anomaly):
         dictionaries mapping each entity to its corresponding box plot data.
     :return type: Dict[str, Dict[Any, Any]]
     """
+    data_dict = load_data(dataloader, datasets, entities, exclude_anomaly)
+
     bp_dict = dict()
     for d in datasets:
         bp_dict[d] = dict()
         for i, entity in enumerate(entities[d]):
-            dataloader.load_dataset(d, entity)
-            data = dataloader.data
-            if dataloader.label is not None:
-                label = dataloader.label
-                if exclude_anomaly:
-                    data = data[label==0]   # just nominal data when having test data.
+            data = data_dict[d][entity]["data"]
             bp = plt.boxplot(data)
             bp_data = get_box_plot_data(bp, data.shape[-1])
             bp_dict[d][entity] = bp_data
@@ -81,21 +79,56 @@ def get_box_plot_data(bp, channels):
     return pd.DataFrame(rows_list)
 
 def print_box_plot_tikz(bp_train, bp_test):
+    tikz_output = []
+    tikz_output.append("\\begin{figure}")
+    tikz_output.append("\centering")
     for ds in bp_train.keys():
+        tikz_output.append("\\begin{tikzpicture}")
+        tikz_output.append("  \\begin{axis}")
+        tikz_output.append("    [")
+        tikz_output.append("    boxplot/draw direction=y,")
+        tikz_output.append("    height=5cm,")
+        tikz_output.append("    width=\\textwidth,")
+        tikz_output.append("    ymin=-1.3,ymax=2.6,")
+        tikz_output.append("    xmin=0.2,xmax=16.8,")
+        tikz_output.append("    xlabel={entity},")
+        tikz_output.append("    ylabel={value},")
+        tikz_output.append("    xtick={2.5,4.5,6.5,8.5,10.5,12.5,14.5},")
+        tikz_output.append("    xticklabel=\empty,")
+        tikz_output.append("    extra x ticks={1.5,3.5,5.5,7.5,9.5,11.5,13.5,15.5},")
+        tikz_output.append("    extra x tick labels={...},")
+        tikz_output.append("    extra x tick style={major tick length=0pt},")
+        tikz_output.append("    boxplot={")
+        tikz_output.append(f"        every box/.style={{fill={ds.lower()}, draw={ds.lower()}}},")
+        tikz_output.append("    },")
+        tikz_output.append("    cycle list={{fill opacity=0.6}, {fill opacity=0.1}},")
+        tikz_output.append("    legend style={at={(0.5,1.1)}, anchor=south, legend cell align=left, legend columns=2},")
+        tikz_output.append("    legend entries={Training data \quad \quad, Testing data}")
+        tikz_output.append("    ]")
+        tikz_output.append(f"    \\addlegendimage{{area legend, fill={ds.lower()}, fill opacity=0.6, draw=none}}")
+        tikz_output.append(f"    \\addlegendimage{{area legend, fill={ds.lower()}, fill opacity=0.1, draw=none}}")
         for entity in bp_train[ds].keys():
             for (channel_train, values_train), (channel_test, values_test) in zip(bp_train[ds][entity].iterrows(), bp_test[ds][entity].iterrows()):
-                #if channel_train not in [0,1,3,5,6,20,22,23]: continue # PSM
-                #if channel_train not in [0,1,2,4,7,8,11,17]: continue # SWaT
-                #if channel_train not in [0,1,5,9,20,29,31,42]: continue # WADI
-                #if channel_train not in [0]: continue # MSL/SMAP
-                if channel_train not in [0,4,5,6,13,14,15,20]: continue # SMD
-                print_addplot_train_test(values_train, values_test)
+                if ds == "PSM" and channel_train not in [0,1,3,5,6,20,22,23]: continue
+                if ds == "SWaT" and channel_train not in [0,1,2,4,7,8,11,17]: continue
+                #if ds == "WADI" and channel_train not in [0,1,5,9,20,29,31,42]: continue
+                if ds == "WADI" and channel_train not in [0,1,9,18,20,31,42,63]: continue
+                if ds == "SMAP" and channel_train not in [0,1,2,3,4,5,6,7]: continue
+                if ds == "MSL" and channel_train not in [0,1,5,7,11,12,19,20]: continue
+                if ds == "SMD" and channel_train not in [0,4,5,6,13,14,15,20]: continue
+                tikz_output = print_addplot_train_test(values_train, values_test, tikz_output)
+        tikz_output.append("  \end{axis}")
+        tikz_output.append("\end{tikzpicture}")
+    tikz_output.append(f"\caption{{Nominal data distribution for channel 0 of different entities of the \\acs{{{ds}}} dataset.}}")
+    tikz_output.append(f"\label{{fig:data_box_{ds.lower()}}}")
+    tikz_output.append("\end{figure}")
+    print("\n".join(tikz_output))
 
 
-def print_addplot_train_test(train, test):
-    print_addplot_entry(train)
-    print_addplot_entry(test)
-
+def print_addplot_train_test(train, test, tikz_output):
+    tikz_output.append(print_addplot_entry(train))
+    tikz_output.append(print_addplot_entry(test))
+    return tikz_output
 
 def print_addplot_entry(data):
     median = data.get('median', None)
@@ -116,5 +149,5 @@ def print_addplot_entry(data):
         f"] coordinates {{}};"
     )
     # Print the boxplot entry
-    print(tikz_entry)
+    return tikz_entry
 

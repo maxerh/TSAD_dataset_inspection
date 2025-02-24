@@ -1,14 +1,61 @@
 import os
 import numpy as np
 import pandas as pd
+from tabulate import tabulate
 from argparse import ArgumentParser
 import visualization
-import matplotlib.pyplot as plt
 
 import datainspection
 
 from data_loader import DataLoader
 
+def get_dataset_table():
+    """
+    Generates and displays a table summarizing dataset characteristics.
+
+    The function retrieves dataset entities and computes various statistics for
+    each dataset. It calculates the number of entities, channels, and dataset
+    dimensions, as well as the minimum, maximum, and average dataset lengths.
+    Additionally, it computes the percentage of anomalies in the test datasets.
+    The table is then printed with specified headers.
+
+    :return: None
+    """
+    header = ["Dataset", "Entities", "Channels", "min.", "max.", "avg.", "min.", "max.", "avg.", "% Anomaly"]
+    entity_header = ["Entity", "Training", "Testing", "% Anomalies"]
+    table_entries = []
+    entities = get_dataset_entities()
+    for ds in entities.keys():
+        table_entry = []
+        entity_table = []
+        table_entry.append(ds)
+        table_entry.append(len(entities[ds]))
+        dataloader_train = DataLoader('train')
+        dataloader_test = DataLoader('test')
+        lengths_train = []
+        lengths_test = []
+        n_anomalies = 0
+        test_length = 0
+        for i, e in enumerate(entities[ds]):
+            dataloader_train.load_dataset(ds, e)
+            dataloader_test.load_dataset(ds, e)
+            if i == 0: table_entry.append(dataloader_train.data.shape[-1])
+            n_anomalies += sum(dataloader_test.label)
+            test_length += len(dataloader_test.label)
+            lengths_train.append(len(dataloader_train.data))
+            lengths_test.append(len(dataloader_test.data))
+            entity_table.append([e,lengths_train[-1], lengths_test[-1], round(sum(dataloader_test.label)*100/len(dataloader_test.label),2)])
+        table_entry.append(min(lengths_train))
+        table_entry.append(max(lengths_train))
+        table_entry.append(np.mean(lengths_train))
+        table_entry.append(min(lengths_test))
+        table_entry.append(max(lengths_test))
+        table_entry.append(np.mean(lengths_test))
+        table_entry.append(n_anomalies*100/test_length)
+        table_entries.append(table_entry)
+        print(tabulate(entity_table, headers=entity_header, tablefmt="latex"))
+
+    #print(tabulate(table_entries, headers=header, tablefmt="latex"))
 
 def get_dataset_entities():
     """
@@ -28,20 +75,20 @@ def get_dataset_entities():
     entities["SMD"] += ["1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8"]
     entities["SMD"] += ["2-1", "2-2", "2-3", "2-4", "2-5", "2-6", "2-7", "2-8", "2-9"]
     entities["SMD"] += ["3-1", "3-2", "3-3", "3-4", "3-5", "3-6", "3-7", "3-8", "3-9", "3-10", "3-11"]
-    #entities["SMD"] += ["3-11"]
+    #entities["SMD"] = ["3-11"]
     entities["SMD"] = [f"machine-{e}" for e in entities["SMD"]]
 
     entities["MSL"] += ["C-1", "C-2", "D-14", "D-15", "D-16", "F-4", "F-5", "F-7", "F-8"]
     entities["MSL"] += ["M-1", "M-2", "M-3", "M-4", "M-5", "M-6", "M-7", "P-10", "P-11", "P-14", "P-15"]
     entities["MSL"] += ["S-2", "T-4", "T-5", "T-8", "T-9", "T-12", "T-13"]
-    #entities["MSL"] += ["C-1"]
+    #entities["MSL"] = ["C-1"]
 
     entities["SMAP"] += ["A-1", "A-2", "A-3", "A-4", "A-5", "A-6", "A-7", "A-8", "A-9", "B-1"]
-    entities["SMAP"] += ["D-1", "D-2", "D-3", "D-4", "D-5", "D-6", "D-7", "D-8", "D-9", "D-11"] #, "D-12", "D-13"]
+    entities["SMAP"] += ["D-1", "D-2", "D-3", "D-4", "D-5", "D-6", "D-7", "D-8", "D-9", "D-11", "D-12", "D-13"]
     entities["SMAP"] += ["E-1", "E-2", "E-3", "E-4", "E-5", "E-6", "E-7", "E-8", "E-9", "E-10", "E-11", "E-12", "E-13"]
     entities["SMAP"] += ["F-1", "F-2", "F-3", "G-1", "G-2", "G-3", "G-4", "G-6", "G-7"]
     entities["SMAP"] += ["P-1", "P-2", "P-3", "P-4", "P-7", "R-1", "S-1", "T-1", "T-2", "T-3"]
-    #entities["SMAP"] += ["A-2"]
+    #entities["SMAP"] = ["A-2"]
     return entities
 
 
@@ -144,33 +191,52 @@ def detect_stationary(dataloader, datasets, entities):
 
 
 
-
-
 def main(args):
     datasets = args.datasets.split("_")
     entities = get_dataset_entities()
-    #for k in entities:
-    #    if k in datasets:
-    #        print(k, ":", len(entities[k]))
     dataloader_train = DataLoader('train')
     dataloader_test = DataLoader('test')
 
+    #for k in entities:
+    #    if k in datasets:
+    #        print(k, ":", len(entities[k]))
     #get_acf(args, dataloader, datasets, entities)
     #detect_stationary(dataloader, datasets, entities)
+
     """
     import tikz_printer.box_plots as box_plotter
     box_plotter.box_plot(dataloader_train, dataloader_test, datasets, entities,
                          exclude_anomaly=True)
+    """
+    """
     import tikz_printer.min_max_plots as min_max_plotter
     min_max_plotter.print_channel_min_max_plot_tikz(dataloader_train, dataloader_test, datasets, entities,
                                                     exclude_anomaly=True)
-    """
 
     import tikz_printer.anomaly_distribution as ano_plotter
     ano_plotter.get_anomaly_distribution(dataloader_test, datasets, entities)
-
-
-
+    """
+    """
+    from dig.digi_dataloader import DataLoader_dig
+    dl = DataLoader_dig()
+    #stats = dl.get_daily_stats()
+    stats = dl.load_daily_stats("output/daily_stats.pkl")
+    #print(dl.print_daily_stats_tikz(stats))
+    print(dl.print_daily_boxplots(stats))   
+    """
+    #get_dataset_table()
+    #from tikz_printer.time_series_plots import ts_plot
+    #ts_plot(dataloader_train,dataloader_test,datasets,entities)
+    #import tikz_printer.anomaly_distribution as ano_plotter
+    #ano_plotter.get_anomaly_lengths(dataloader_test, datasets, entities)
+    #from tikz_printer.statistical_comparison import statistics
+    #statistics(dataloader_train,dataloader_test,datasets,entities)
+    #from tikz_printer.min_max_plots import print_channel_mean_std_tikz
+    #print_channel_mean_std_tikz(dataloader_train, dataloader_test, datasets, entities, exclude_anomaly=True)
+    from tikz_printer.statistical_comparison import statistics
+    statistics(dataloader_train,dataloader_test,datasets,entities)
+    #from tikz_printer.feature_analysis import feature_correlation
+    #feature_correlation(dataloader_test, datasets, entities)
 
 if __name__ == '__main__':
     parser = ArgumentParser()
